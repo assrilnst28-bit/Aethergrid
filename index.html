@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Aether Grid</title>
+<style>
+*{box-sizing:border-box;touch-action:manipulation}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07101d;color:#eafaff;font-family:system-ui,Arial}
+canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;inset:0;pointer-events:none}
+.brand{position:absolute;top:12px;left:14px;font-weight:900;letter-spacing:3px;color:#8df5ff;text-shadow:0 0 14px #00cfff}
+.sub{font-size:10px;letter-spacing:2px;color:#8baec3;font-weight:600}
+#status{position:absolute;top:12px;right:14px;text-align:right;font-size:12px;color:#d7f9ff}
+.controls{position:absolute;right:14px;bottom:16px;display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end;max-width:70vw}
+button{border:1px solid #2f879e;background:linear-gradient(180deg,#15364c,#0b1a2a);color:#bffaff;border-radius:12px;padding:13px 15px;font-weight:800;letter-spacing:1px;box-shadow:0 0 16px #00cfff22}
+button:active{transform:scale(.96);background:#15516a}
+#hint{position:absolute;left:14px;bottom:18px;font-size:11px;color:#9cb9c8;max-width:38vw}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div class="brand">AETHER GRID<div class="sub">GRAVITY ARCHITECTURE // PROTOTYPE</div></div>
+ <div id="status">OFFLINE TRAINING<br><span style="color:#65eaff">CORE STABLE</span></div>
+ <div id="hint">TAP THE ARENA TO MOVE<br>ALTER THE TERRAIN TO OPEN A ROUTE</div>
+ <div class="controls">
+  <button onclick="ability('raise')">RAISE</button><button onclick="ability('wall')">WALL</button>
+  <button onclick="ability('bridge')">BRIDGE</button><button onclick="resetMap()">RESET</button>
+ </div>
+</div>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W,H,DPR,hero={x:0,y:0,tx:0,ty:0},tick=0,selected=0,toast='TAP TO MOVE';
+const cols=9,rows=7,tiles=[];
+function init(){
+ tiles.length=0;
+ for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+  let base=(x===0||x===cols-1||y===0||y===rows-1);
+  tiles.push({x,y,h:0,type:'floor',base,owner:0});
+ }
+ hero.x=1;hero.y=3;hero.tx=1;hero.ty=3;
+}
+function resize(){DPR=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;canvas.width=W*DPR;canvas.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+function iso(x,y,z=0){let s=Math.min(W/(cols+3),H/(rows+3))*0.72;return {x:W*.5+(x-y)*s*.5,y:H*.48+(x+y)*s*.27-z*s*.25,s}}
+function poly(points,fill,stroke){ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
+function tile(t){
+ const a=iso(t.x,t.y,t.h),s=a.s*.5, z=t.h*a.s*.25;
+ let top=[{x:a.x,y:a.y-s*.55-z},{x:a.x+s,y:a.y-z},{x:a.x,y:a.y+s*.55-z},{x:a.x-s,y:a.y-z}];
+ let edge=t.type==='wall'?'#ff9d58':t.type==='bridge'?'#7cf8ff':'#1b536b';
+ poly([{x:top[3].x,y:top[3].y},{x:top[2].x,y:top[2].y},{x:top[2].x,y:top[2].y+7},{x:top[3].x,y:top[3].y+7}], '#10283b','#17394d');
+ poly([{x:top[1].x,y:top[1].y},{x:top[2].x,y:top[2].y},{x:top[2].x,y:top[2].y+7},{x:top[1].x,y:top[1].y+7}], '#0b1d2c','#17394d');
+ let fill=t.base?'#142c40':(t.type==='bridge'?'#15546a':t.type==='wall'?'#553b32':t.h?'#1d5268':'#10283b');
+ poly(top,fill,t.base?'#28718a':edge);
+ if(!t.base){ctx.strokeStyle=t.h?'#69f5ff':'#1e5368';ctx.globalAlpha=.65;ctx.beginPath();ctx.moveTo(top[0].x,top[0].y);ctx.lineTo(top[2].x,top[2].y);ctx.stroke();ctx.globalAlpha=1}
+ if(t.type==='wall'){
+  poly([{x:a.x-s*.62,y:a.y-s*.5-z},{x:a.x+s*.62,y:a.y-z-s*.5},{x:a.x+s*.62,y:a.y-z+s*.65},{x:a.x-s*.62,y:a.y+s*.65-z}], '#9b543c','#ffb16c');
+  ctx.strokeStyle='#ffd08c';ctx.beginPath();ctx.moveTo(a.x-s*.3,a.y-z-s*.15);ctx.lineTo(a.x+s*.25,a.y-z+s*.18);ctx.stroke()
+ }
+ if(t.type==='bridge'){ctx.strokeStyle='#7df7ff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(top[3].x,top[3].y);ctx.lineTo(top[1].x,top[1].y);ctx.stroke();ctx.lineWidth=1}
+ if(t.x===4&&t.y===3){ctx.strokeStyle='#ffcf71';ctx.lineWidth=2;ctx.beginPath();ctx.arc(a.x,a.y-4,s*.28,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1}
+}
+function drawHero(){
+ let p=iso(hero.x,hero.y,0),s=p.s;
+ ctx.fillStyle='#02070c';ctx.globalAlpha=.45;ctx.beginPath();ctx.ellipse(p.x,p.y+4,s*.22,s*.11,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+ // stylized armor body
+ poly([{x:p.x,y:p.y-s*.52},{x:p.x+s*.19,y:p.y-s*.3},{x:p.x+s*.14,y:p.y+s*.02},{x:p.x,y:p.y+s*.13},{x:p.x-s*.14,y:p.y+s*.02},{x:p.x-s*.19,y:p.y-s*.3}], '#a6f8ff','#efffff');
+ poly([{x:p.x,y:p.y-s*.48},{x:p.x+s*.12,y:p.y-s*.27},{x:p.x,y:p.y-s*.12},{x:p.x-s*.12,y:p.y-s*.27}], '#087c9c','#61efff');
+ ctx.shadowColor='#32eaff';ctx.shadowBlur=12;ctx.fillStyle='#9fffff';ctx.beginPath();ctx.arc(p.x,p.y-s*.32,s*.045,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+ ctx.fillStyle='#79f4ff';ctx.fillRect(p.x-s*.19,p.y+s*.18,s*.38,3)
+}
+function frame(){
+ ctx.clearRect(0,0,W,H);
+ let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#071321');g.addColorStop(1,'#0b2030');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ // stars
+ for(let i=0;i<36;i++){let x=(i*137.3)%W,y=(i*71.7)%H;ctx.fillStyle='#8bd8e8';ctx.globalAlpha=.12+(i%4)*.05;ctx.fillRect(x,y,1.5,1.5)}ctx.globalAlpha=1;
+ tiles.slice().sort((a,b)=>(a.x+a.y)-(b.x+b.y)).forEach(tile);
+ drawHero();
+ tick++;requestAnimationFrame(frame)
+}
+function ability(type){
+ let x=Math.max(1,Math.min(cols-2,Math.round(hero.x)+1)),y=Math.max(1,Math.min(rows-2,Math.round(hero.y)));
+ let t=tiles.find(q=>q.x===x&&q.y===y);
+ if(!t){toast='NO VALID MODULE';return}
+ if(type==='raise'){t.h=t.h>=2?0:t.h+1;t.type='floor';toast='GRAVITY SHIFT: '+(t.h?'PLATFORM RAISED':'PLATFORM RESTORED')}
+ if(type==='wall'){t.type=t.type==='wall'?'floor':'wall';t.h=0;toast=t.type==='wall'?'BARRIER DEPLOYED':'BARRIER REMOVED'}
+ if(type==='bridge'){t.type=t.type==='bridge'?'floor':'bridge';t.h=0;toast=t.type==='bridge'?'BRIDGE ONLINE':'BRIDGE OFFLINE'}
+ document.getElementById('status').innerHTML='TERRAIN REVISION '+(++selected)+'<br><span style="color:#65eaff">'+toast+'</span>';
+}
+function resetMap(){init();selected=0;document.getElementById('status').innerHTML='OFFLINE TRAINING<br><span style="color:#65eaff">CORE STABLE</span>'}
+canvas.addEventListener('pointerdown',e=>{
+ const s=Math.min(W/(cols+3),H/(rows+3))*.72;
+ let best=null,dist=1e9;
+ tiles.forEach(t=>{let p=iso(t.x,t.y,t.h),d=Math.hypot(e.clientX-p.x,e.clientY-p.y);if(d<dist){dist=d;best=t}});
+ if(best&&dist<s*.7){hero.tx=best.x;hero.ty=best.y}
+});
+function smooth(){hero.x+=(hero.tx-hero.x)*.08;hero.y+=(hero.ty-hero.y)*.08;requestAnimationFrame(smooth)}
+init();resize();addEventListener('resize',resize);frame();smooth();
+</script>
+</body></html>
