@@ -1,1 +1,52 @@
 
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aether Grid</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07101f;color:#7ef9ff;font-family:Arial,sans-serif;text-align:center}
+main{padding:25px}
+h1{font-size:38px;text-shadow:0 0 15px #00d9ff}
+p{color:#d6e8ff}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:400px;margin:25px auto}
+.cell{height:75px;border:1px solid #25c8e8;border-radius:12px;background:#101f38;color:#7ef9ff;font-size:25px}
+button{padding:12px 24px;background:#00bcd4;color:#04101c;border:0;border-radius:10px;font-size:18px;font-weight:bold}
+</style>
+</head>
+<body>
+<main>
+<h1>AETHER GRID</h1>
+<p>Jelajahi grid energi dan aktifkan semua sel!</p>
+<div class="grid" id="grid"></div>
+<p id="score">Energi: 0</p>
+<button onclick="resetGame()">MULAI LAGI</button>
+</main>
+<script>
+let energy=0;
+function resetGame(){
+energy=0;
+document.getElementById('score').textContent='Energi: '+energy;
+const grid=document.getElementById('grid');
+grid.innerHTML='';
+for(let i=0;i<9;i++){
+const b=document.createElement('button');
+b.className='cell';
+b.textContent='◇';
+b.onclick=()=>{
+if(b.textContent==='◇'){
+b.textContent='✦';
+energy++;
+document.getElementById('score').textContent='Energi: '+energy;
+}
+};
+grid.appendChild(b);
+}
+}
+resetGame();
+</script>
+</body>
+</html>
