@@ -1,13 +1,16 @@
-
 package com.aethergrid.prototype;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.webkit.WebView;
 import android.webkit.WebSettings;
+import android.webkit.WebViewClient;
 import android.view.View;
+import android.graphics.Color;
 
 public class MainActivity extends Activity {
+    private WebView webView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -19,12 +22,25 @@ public class MainActivity extends Activity {
             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         );
 
-        WebView webView = new WebView(this);
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.rgb(7, 16, 31));
+
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
 
-        webView.loadUrl("file:///android_asset/index.html");
+        webView.setWebViewClient(new WebViewClient());
         setContentView(webView);
+        webView.loadUrl("file:///android_asset/index.html");
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
+        }
     }
 }
