@@ -18,13 +18,33 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Create Android manifest
+        run: |
+          mkdir -p app/src/main
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
+                  android:label="Aether Grid">
+                  <activity
+                      android:name="com.aethergrid.prototype.MainActivity"
+                      android:screenOrientation="landscape"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
       - name: Build APK
         run: gradle assembleDebug
 
       - name: Check APK size
-        run: |
-          ls -lh app/build/outputs/apk/debug/
-          du -h app/build/outputs/apk/debug/app-debug.apk
+        run: ls -lh app/build/outputs/apk/debug/app-debug.apk
 
       - uses: actions/upload-artifact@v4
         with:
